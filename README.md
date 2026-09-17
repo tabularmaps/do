@@ -73,6 +73,7 @@ python3 scripts/generate_layout.py --version v07                   # 配置生�
 python3 scripts/validate_layout.py data/layout-v07.json            # 機械検証
 python3 scripts/render_layout.py data/layout-v07.json prototypes/v07/tabularmaps_hokkaido_v07.png  # PNG (Pillow)
 python3 scripts/export_board_csv.py                                # board.csv
+python3 scripts/check_codes.py                                     # 総務省のコード一覧との突き合わせ (要ネット)
 ```
 
 設計規約は [CLAUDE.md](CLAUDE.md)、経緯と却下案は [DECISIONS.md](DECISIONS.md)、前版は `prototypes/v06/`。
