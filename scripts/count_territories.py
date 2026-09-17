@@ -4,7 +4,7 @@ import sys
 from collections import Counter
 NEED = dict(S=13, R=8, K=26, O=21, Z=24, I=7, P=16, G=23, B=17, H=7, T=22, U=11, N=8, W=14, E=7)
 NEED['.'] = 32
-# v08 以降: X = 北方領土の6村 (既定表示では余白として描くため、X + '.' = 32 を検算する)
+# v08 以降: X = 北方領土の6村 (179市町村だけの表示では余白として描くため、X + '.' = 32 を検算する)
 NEED_X = 6
 rows = [l.rstrip('\n') for l in open(sys.argv[1], encoding='utf-8') if l and not l.startswith('#')]
 assert len(rows) == 16 and all(len(r) == 16 for r in rows), [len(r) for r in rows]
