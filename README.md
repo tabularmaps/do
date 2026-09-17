@@ -99,7 +99,7 @@ python3 scripts/check_codes.py                                     # 総務省�
 ## 兄弟プロジェクト
 
 - [tabularmaps/8bit](https://github.com/tabularmaps/8bit) — ISO 3166-1 を 16×16 に
-- tabularmaps/cldr — Unicode CLDR の地域識別子を等面積セルに (データ契約を共有)
+- [tabularmaps/cldr](https://github.com/tabularmaps/cldr) — Unicode CLDR の地域識別子 257 件を 20×14 に (配置データのキー名 `placements` / `board` / `structural_spaces` / `generator` を共有)
 
 ## ライセンス
 
