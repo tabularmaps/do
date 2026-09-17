@@ -61,8 +61,6 @@ def render(layout, out, title=None, subtitle=None, with_villages=False):
         fill = COLORS[p['bureau']]
         if big:
             outline, width, fsize = '#334155', 4, 26 if p['w'] == 4 else 23
-        elif p.get('status') == 'northern_territories':
-            outline, width, fsize = '#64748b', 2, 13   # 6村は枠線で区別 (塗りは根室振興局と同色)
         else:
             outline, width, fsize = 'white', 2, 15
         d.rounded_rectangle((x0, y0, x1, y1), 8 if big else 5, fill=fill, outline=outline, width=width)
