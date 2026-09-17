@@ -68,7 +68,7 @@ openmct.install(TabularMapsPlugin({
 
 | ファイル | 内容 |
 |---|---|
-| `data/municipalities.json` | 179 市町村 + 北方領土 6 村のマスター (全国地方公共団体コード上 5 桁・振興局・区分・役場の概略座標・階級・status) |
+| `data/municipalities.json` | 北海道の市町村マスター。179 市町村と根室振興局管内の 6 村を `status` で区別 (全国地方公共団体コード上 5 桁・振興局・区分・役場の概略座標・階級・status) |
 | `data/layout-v08.json` | 現行の配置。`placements` (long-form、status 付き) が一次、`board` (179) / `board_all` (185) は派生、`structural_spaces` は余白 26 セル |
 | `data/board.csv`, `data/board-with-villages.csv` | [tabularmaps/8bit](https://github.com/tabularmaps/8bit) 互換の 16×16 CSV (179 / 6 村込み) |
 | `data/sapporo-wards.json` | 札幌 10 区の 4×4 内部配置 |
