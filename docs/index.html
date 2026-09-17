@@ -19,6 +19,7 @@
     <div id="app"></div>
     <script src="./tabularmap.js"></script>
     <script src="./openmct-plugin.js"></script>
+    <script src="./jma-warnings.js"></script>
     <script src="./demo-sources.js"></script>
     <script>
       (function () {
@@ -27,7 +28,7 @@
         openmct.install(openmct.plugins.LocalStorage());
         openmct.install(openmct.plugins.UTCTimeSystem());
         openmct.install(openmct.plugins.Espresso());
-        openmct.install(TabularMapsPlugin({ dataUrl: './data/', sources: window.TABULARMAPS_DEMO_SOURCES }));
+        openmct.install(TabularMapsPlugin({ dataUrl: './data/', sources: [window.TABULARMAPS_JMA_WARNINGS, ...window.TABULARMAPS_DEMO_SOURCES] }));
         openmct.start('#app');
       })();
     </script>

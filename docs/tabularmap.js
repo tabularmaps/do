@@ -3,6 +3,8 @@
  *
  *   const map = TabularMap.create(container, { layout, municipalities, wards });
  *   map.setSeries({ label: '人口密度', unit: '人/km²', values: { '01100': 1800, ... } });
+ *   // 任意: min/max (値域)、asOf (基準時刻の文字列)、notes: {code: 文字列} (ツールチップと表に出す説明)、
+ *   //       scale: {type: 'ordinal', labels: {'0': '発表なし', '2': '注意報', ...}} (順序尺度: 凡例を段階の色見本にする)
  *   map.setMode('value' | 'region');   // データ値の色 / 振興局の色 (無データ時の既定)
  *   map.setExpandSapporo(true | false); // 札幌4×4を10区に展開
  *   map.setIncludeNorthernTerritoriesVillages(true | false); // 北方領土の6村を含める (既定 true。false で179市町村だけ)
@@ -52,6 +54,11 @@ window.TabularMap = (function () {
   }
   function inkFor(fill) {
     return luminance(fill) < 0.3 ? '#ffffff' : '#0b0b0b';
+  }
+  function fmtValue(s, v) {
+    if (v == null || Number.isNaN(v)) return '—';
+    if (s && s.scale && s.scale.type === 'ordinal' && s.scale.labels && s.scale.labels[String(v)] !== undefined) return s.scale.labels[String(v)];
+    return fmt(v, s ? s.unit : '');
   }
   function fmt(v, unit) {
     if (v == null || Number.isNaN(v)) return '—';
@@ -206,7 +213,19 @@ window.TabularMap = (function () {
       }
       // 凡例
       legend.innerHTML = '';
-      if (valueMode) {
+      const ordinal = valueMode && state.series.scale && state.series.scale.type === 'ordinal' && state.series.scale.labels;
+      if (ordinal) {
+        // 順序尺度: 段階ごとの色見本 (値は min〜max の位置で同じランプから採る)
+        for (const k of Object.keys(ordinal).map(Number).sort((a, b) => a - b)) {
+          const sw = document.createElement('span');
+          sw.className = 'tm-legend-sw';
+          sw.innerHTML = `<i style="background:${ramp((k - lo) / (hi - lo))}"></i>${ordinal[k]}`;
+          legend.appendChild(sw);
+        }
+        const nd = document.createElement('span');
+        nd.className = 'tm-legend-nodata'; nd.textContent = '無データ';
+        legend.appendChild(nd);
+      } else if (valueMode) {
         const bar = document.createElement('div');
         bar.className = 'tm-legend-bar';
         bar.style.background = `linear-gradient(90deg, ${SEQ.join(',')})`;
@@ -244,11 +263,13 @@ window.TabularMap = (function () {
                        bureau: p.bureau + (isNTV(p) ? ' (北方領土)' : ''), v: valueOf(p.code) }));
       if (s) rows.sort((a, b) => (b.v ?? -Infinity) - (a.v ?? -Infinity));
       const t = document.createElement('table');
-      t.innerHTML = `<thead><tr><th>コード</th><th>市町村</th><th>振興局</th><th>${s ? (s.label || '値') + (s.unit ? ` (${s.unit})` : '') : ''}</th></tr></thead>`;
+      const hasNotes = !!(s && s.notes);
+      t.innerHTML = `<thead><tr><th>コード</th><th>市町村</th><th>振興局</th><th>${s ? (s.label || '値') + (s.unit ? ` (${s.unit})` : '') : ''}</th>${hasNotes ? '<th>内容</th>' : ''}</tr></thead>`;
       const tb = document.createElement('tbody');
       for (const r of rows) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.code}</td><td>${r.name}</td><td>${r.bureau}</td><td class="tm-num">${s ? fmt(r.v) : ''}</td>`;
+        tr.innerHTML = `<td>${r.code}</td><td>${r.name}</td><td>${r.bureau}</td><td class="tm-num">${s ? fmtValue(s, r.v) : ''}</td>`
+          + (hasNotes ? `<td>${s.notes[r.code] || ''}</td>` : '');
         tb.appendChild(tr);
       }
       t.appendChild(tb);
@@ -262,7 +283,8 @@ window.TabularMap = (function () {
       const s = state.series;
       tip.innerHTML = `<b>${c.name}</b><span class="tm-tip-sub">${c.isWard ? '札幌市' : c.bureau} · ${c.code}</span>`
         + (c.ntv ? '<span class="tm-tip-sub">北方領土の村。市町村としての行政の実態がない</span>' : '')
-        + (s ? `<span class="tm-tip-val">${s.label || ''} ${fmt(v, s.unit)}</span>` : '');
+        + (s ? `<span class="tm-tip-val">${s.label || ''} ${fmtValue(s, v)}</span>` : '')
+        + (s && s.notes && s.notes[c.code] ? `<span class="tm-tip-sub">${s.notes[c.code]}</span>` : '');
       tip.hidden = false;
       const r = stage.getBoundingClientRect();
       let x = ev.clientX - r.left + 12, y = ev.clientY - r.top + 12;

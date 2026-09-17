@@ -29,6 +29,8 @@ python3 -m http.server 8765 --directory docs
 ```
 
 - `http://localhost:8765/` — Open MCT。左のツリー「北海道 tabular map」を展開し、指標を選ぶと値でセルが塗られます。
+  指標「気象警報・注意報 (気象庁)」は気象庁の防災情報 JSON (府県予報区 8 件) を 5 分ごとに取得し、市町村ごとの
+  最も高い水準 (注意報 / 警報 / 危険警報 / 特別警報) で塗ります (`docs/jma-warnings.js`)。
 - `http://localhost:8765/preview.html` — Open MCT なしで描画コアだけを確認するページ。
 
 自分のデータをつなぐには `docs/demo-sources.js` の形で指標 (source) を定義し、`index.html` の
@@ -50,6 +52,8 @@ openmct.install(TabularMapsPlugin({
 
 値の無い市町村は「無データ」色になります。振興局の色は無データ時の既定表示にだけ使い、
 セルの塗りはダッシュボードのデータに明け渡します。
+指標には任意で `notes` (市町村ごとの説明文。ツールチップと表に出ます) と `scale: {type: 'ordinal', labels: {...}}`
+(順序尺度。凡例が段階の色見本になります) を付けられます。
 
 ### 描画コアだけ使う
 
@@ -73,6 +77,7 @@ openmct.install(TabularMapsPlugin({
 | `data/board.csv`, `data/board-with-villages.csv` | [tabularmaps/8bit](https://github.com/tabularmaps/8bit) 互換の 16×16 CSV (179 / 6 村込み) |
 | `data/sapporo-wards.json` | 札幌 10 区の 4×4 内部配置 |
 | `design/territories-v08.txt` | 振興局の領土図 (人手)。X が 6 村の席 |
+| `data/jma-warning-codes.json` | 気象庁の気象警報・注意報の種類コード (防災情報 XML コード管理表から作成) と警戒レベル相当の水準 |
 
 ## 版を作り直す
 

@@ -166,7 +166,10 @@ docs/                      GitHub Pages: Open MCT ダッシュボード (index.h
 `docs/openmct-plugin.js` は `objects.addProvider` + `composition.addProvider` + `objectViews.addProvider` だけを使う。
 Telemetry API (request/subscribe) と Display Layout は使わない (dwg7/cafebabe の Open MCT ノウハウに従う)。
 指標は `sources: [{key, name, refreshMs, fetchValues() | valuesUrl}]` で渡し、`{label, unit, asOf, min, max,
-values: {<code>: number}}` を返す。`includeNorthernTerritoriesVillages` (既定 true) で 6 村の初期表示を決める。Open MCT は unpkg の 4.3.1 に固定 (dist/openmct.js と espressoTheme.css の
+values: {<code>: number}}` を返す。`includeNorthernTerritoriesVillages` (既定 true) で 6 村の初期表示を決める。
+指標は任意で `notes` (市町村ごとの説明文) と `scale: {type: 'ordinal', labels}` (順序尺度) を持てる。
+実データの指標は `docs/jma-warnings.js` (気象庁の気象警報・注意報、r8 形式の JSON を 8 府県予報区分合算) が最初の例。
+気象庁の旧形式 `warning/data/warning/` は更新が止まっているので使わない (D21)。Open MCT は unpkg の 4.3.1 に固定 (dist/openmct.js と espressoTheme.css の
 実在を確認済み)。CDN 経由なので `window.SharedWorker = undefined` を先に置く。
 
 ## 一次情報源

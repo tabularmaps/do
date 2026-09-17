@@ -23,3 +23,4 @@ jobs:
           cmp data/sapporo-wards.json docs/data/sapporo-wards.json
           cmp data/board.csv docs/data/board.csv
           cmp data/board-with-villages.csv docs/data/board-with-villages.csv
+          cmp data/jma-warning-codes.json docs/data/jma-warning-codes.json

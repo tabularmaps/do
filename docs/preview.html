@@ -27,6 +27,7 @@
       <p class="note">Open MCT なしで描画コアだけを確認するページ。本番ダッシュボードは <a href="./index.html">index.html</a>。</p>
     </div>
     <script src="./tabularmap.js"></script>
+    <script src="./jma-warnings.js"></script>
     <script src="./demo-sources.js"></script>
     <script>
       (async function () {
@@ -40,13 +41,14 @@
           onSelect: (code, cell) => { document.getElementById('status').textContent = `選択: ${cell.name} (${code})`; }
         });
         const sel = document.getElementById('source');
-        for (const s of TABULARMAPS_DEMO_SOURCES) {
+        const SOURCES = [TABULARMAPS_JMA_WARNINGS, ...TABULARMAPS_DEMO_SOURCES];
+        for (const s of SOURCES) {
           const o = document.createElement('option'); o.value = s.key; o.textContent = s.name; sel.appendChild(o);
         }
         let timer = null;
         sel.addEventListener('change', async () => {
           if (timer) clearInterval(timer);
-          const s = TABULARMAPS_DEMO_SOURCES.find((x) => x.key === sel.value);
+          const s = SOURCES.find((x) => x.key === sel.value);
           if (!s) { map.setSeries(null); map.setMode('region'); return; }
           const tick = async () => map.setSeries(await s.fetchValues());
           await tick();
