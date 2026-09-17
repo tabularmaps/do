@@ -15,7 +15,9 @@
 
 ### ダッシュボード (Open MCT)
 
-`docs/` をそのまま静的配信します (GitHub Pages 想定)。
+公開版: https://tabularmaps.github.io/do/ (単体プレビュー: https://tabularmaps.github.io/do/preview.html)
+
+`docs/` をそのまま静的配信します (GitHub Pages: main ブランチの /docs)。
 
 ```bash
 python3 -m http.server 8765 --directory docs
