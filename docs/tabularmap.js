@@ -261,7 +261,7 @@ window.TabularMap = (function () {
       const v = valueOf(c.code);
       const s = state.series;
       tip.innerHTML = `<b>${c.name}</b><span class="tm-tip-sub">${c.isWard ? '札幌市' : c.bureau} · ${c.code}</span>`
-        + (c.ntv ? '<span class="tm-tip-sub">北方領土。現在は日本の施政下になく、村としての行政は行われていない</span>' : '')
+        + (c.ntv ? '<span class="tm-tip-sub">北方領土の村。市町村としての行政の実態がない</span>' : '')
         + (s ? `<span class="tm-tip-val">${s.label || ''} ${fmt(v, s.unit)}</span>` : '');
       tip.hidden = false;
       const r = stage.getBoundingClientRect();

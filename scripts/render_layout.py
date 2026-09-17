@@ -73,7 +73,7 @@ def render(layout, out, title=None, subtitle=None, with_villages=False):
     met = layout.get('generator', {}).get('metrics', {})
     if with_villages and nt:
         foot = "セル収支: 16 + 40 + 168 + 6 + 26 = 256。構造余白は無名。"
-        foot2 = "6村は根室振興局管内。現在は日本の施政下になく、村としての行政は行われていない (既定の表示では含めない)。"
+        foot2 = "6村は根室振興局管内で、市町村としての行政の実態がない (既定の表示では含めない)。"
     else:
         foot = "セル収支: 16 + 40 + 168 + 32 = 256。構造余白は無名。"
         foot2 = ("東端の列 (x=15) の余白 6 セルは北方領土の6村の席で、明示的に含める時だけ描く。" if nt else "")
