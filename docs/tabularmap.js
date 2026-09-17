@@ -5,12 +5,12 @@
  *   map.setSeries({ label: '人口密度', unit: '人/km²', values: { '01100': 1800, ... } });
  *   map.setMode('value' | 'region');   // データ値の色 / 振興局の色 (無データ時の既定)
  *   map.setExpandSapporo(true | false); // 札幌4×4を10区に展開
- *   map.setIncludeNorthernTerritoriesVillages(true | false); // 北方領土の6村を含める (既定 false = 179市町村)
+ *   map.setIncludeNorthernTerritoriesVillages(true | false); // 北方領土の6村を含める (既定 true。false で179市町村だけ)
  *   map.destroy();
  *
- * 北方領土の6村 (status: 'northern_territories') は、総務省の市町村数の注記「北方領土の6村を含めると…」と
- * 同じ扱いにする: 既定では含めず (北海道庁「道内179市町村」と同じ範囲)、明示的に含めた時だけ市町村として描く。
- * 含めない時、その6セルは構造余白と同じ見た目にする (東端の列だけなので凹みは生じない)。
+ * 北方領土の6村 (status: 'northern_territories') は、地図としては政府の慣行 (地理院地図・全国市町村要覧の地図・
+ * 国土数値情報) に合わせて既定で描く。市町村数の集計 (北海道庁「道内179市町村」・総務省の市町村数) に合わせたい時は
+ * false にする。含めない時、その6セルは構造余白と同じ見た目にする (東端の列だけなので凹みは生じない)。
  *
  * 描画方針 (dataviz の規約に従う):
  *   - 値の色は単一色相 (青) の light→dark 逐次ランプ。振興局色は「無データ」の識別用にのみ使う。
@@ -73,7 +73,7 @@ window.TabularMap = (function () {
     const wards = opts.wards || null;
     const N = layout.grid[0];
     const state = { mode: opts.mode || 'region', series: null, expandSapporo: !!opts.expandSapporo, showTable: false,
-                    includeNTV: !!opts.includeNorthernTerritoriesVillages };
+                    includeNTV: opts.includeNorthernTerritoriesVillages !== false };
     const isNTV = (p) => p.status === 'northern_territories';
     const hasNTV = layout.placements.some(isNTV);
 
@@ -231,7 +231,7 @@ window.TabularMap = (function () {
       btnMode.disabled = !state.series;
       btnWards.textContent = state.expandSapporo ? '札幌を1市に畳む' : '札幌を10区に展開';
       btnNTV.textContent = state.includeNTV ? '北方領土の6村を含めない' : '北方領土の6村を含める';
-      btnNTV.title = '既定は179市町村 (北海道庁・総務省の市町村数と同じ範囲)。含めると根室振興局管内の6村を市町村として描く。';
+      btnNTV.title = '根室振興局管内の6村 (市町村としての行政の実態がない)。含めない時は北海道庁・総務省の市町村数と同じ179市町村の範囲になる。';
       btnTable.textContent = state.showTable ? '表を隠す' : '表で見る';
       tableWrap.hidden = !state.showTable;
       if (state.showTable) renderTable();

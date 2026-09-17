@@ -71,10 +71,10 @@ def render(layout, out, title=None, subtitle=None, with_villages=False):
     met = layout.get('generator', {}).get('metrics', {})
     if with_villages and nt:
         foot = "セル収支: 16 + 40 + 168 + 6 + 26 = 256。構造余白は無名。"
-        foot2 = "6村は根室振興局管内で、市町村としての行政の実態がない (既定の表示では含めない)。"
+        foot2 = "6村は根室振興局管内で、市町村としての行政の実態がない。市町村数の集計は179。"
     else:
         foot = "セル収支: 16 + 40 + 168 + 32 = 256。構造余白は無名。"
-        foot2 = ("東端の列 (x=15) の余白 6 セルは北方領土の6村の席で、明示的に含める時だけ描く。" if nt else "")
+        foot2 = ("東端の列 (x=15) の余白 6 セルは北方領土の6村の席 (179市町村だけの表示)。" if nt else "")
     if met:
         foot += f"  地理的隣接 {met['edges']} 組のうち隣接保存 {met['adjacent_kept']}・1セル以内 {met['within_1']}。"
     d.text((M, TOP + n * S + 20), foot, font=font(19), fill='#52606d')

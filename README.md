@@ -3,15 +3,15 @@
 北海道の 179 市町村を、ダッシュボードで一望できる固定 16×16 グリッドに圧縮した「表形式地図」と、
 それを [Open MCT](https://github.com/nasa/openmct) のツリーに載せるプラグインです。
 
-![tabularmaps 北海道 v08](prototypes/v08/tabularmaps_hokkaido_v08.png)
+![tabularmaps 北海道 v08](prototypes/v08/tabularmaps_hokkaido_v08_with_villages.png)
 
-6 村を含めた表示: [prototypes/v08/tabularmaps_hokkaido_v08_with_villages.png](prototypes/v08/tabularmaps_hokkaido_v08_with_villages.png)
+179 市町村だけの表示: [prototypes/v08/tabularmaps_hokkaido_v08.png](prototypes/v08/tabularmaps_hokkaido_v08.png)
 
 - 札幌 4×4、広域拠点 10 か所 (函館・小樽・旭川・稚内・北見・苫小牧・室蘭・帯広・釧路・根室) 2×2、その他 168 市町村 1×1。
 - 16 + 40 + 168 = 224 セルを占有し、残り 32 セルは無名の構造余白 (海・海峡・山脈の継ぎ目)。
-- 北方領土の 6 村 (根室振興局管内の色丹村・泊村・留夜別村・留別村・紗那村・蘂取村) は、総務省の市町村数の注記
-  「北方領土の 6 村を含めると」と同じ扱いで、既定では含めず (北海道庁「道内 179 市町村」と同じ範囲)、
-  「北方領土の 6 村を含める」を明示した時だけ東端の列に市町村として描きます (国土地理院の面積調と同じ 185 の範囲)。
+- 北方領土の 6 村 (根室振興局管内の色丹村・泊村・留夜別村・留別村・紗那村・蘂取村) は、地図としては政府の慣行
+  (地理院地図・全国市町村要覧の地図・国土数値情報) に合わせて東端の列に既定で描きます。市町村数の集計は
+  北海道庁「道内 179 市町村」・総務省の市町村数と同じ 179 で、「北方領土の 6 村を含めない」で 179 だけの表示にできます。
 - 振興局ごとの領土は人が描き (`design/territories-v08.txt`)、領土内の並び順だけを最適化器が解きます。
 - 地理は一望性のために歪めますが、南北・東西の大まかな関係と振興局のまとまりは保ちます
   (役場の緯度で塗ると北→南に単調に濃→淡になることをダッシュボード上で確認できます)。
@@ -37,7 +37,7 @@ python3 -m http.server 8765 --directory docs
 ```js
 openmct.install(TabularMapsPlugin({
   dataUrl: './data/',
-  includeNorthernTerritoriesVillages: false,   // 北方領土の 6 村を含めるか (既定 false = 179 市町村)
+  includeNorthernTerritoriesVillages: true,    // 北方領土の 6 村を含めるか (既定 true。false で 179 市町村だけ)
   sources: [{
     key: 'pop', name: '人口密度', refreshMs: 600000,
     fetchValues: async () => ({
@@ -60,7 +60,7 @@ openmct.install(TabularMapsPlugin({
   const map = TabularMap.create(document.getElementById('panel'), { layout, municipalities, wards });
   map.setSeries({ label: '…', unit: '…', values: { '01100': 12.3 } });
   map.setExpandSapporo(true);   // 札幌 4×4 を 10 区に展開
-  map.setIncludeNorthernTerritoriesVillages(true);   // 北方領土の 6 村を含める (既定 false)
+  map.setIncludeNorthernTerritoriesVillages(false);  // 北方領土の 6 村を含めない (既定は含める)
 </script>
 ```
 

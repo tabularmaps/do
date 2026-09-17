@@ -341,7 +341,7 @@ def to_layout(version, munis, blocks, cells, structural, metrics, seed):
         'board': board,
         **({'northern_territories': {
                 'note': '根室振興局管内の6村。市町村としての行政の実態がない (内閣衆質九五第五号答弁書の言い回し)。'
-                        '既定表示 (179市町村) では構造余白として描き、明示的に含める時だけ市町村として描く。',
+                        '地図としては既定で描く。179市町村だけの表示では構造余白として描く。',
                 'cells': [[p['x'], p['y']] for p in nt],
             }, 'board_all': make_board(True)} if nt else {}),
     }

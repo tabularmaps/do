@@ -10,7 +10,7 @@
  * 使い方:
  *   openmct.install(TabularMapsPlugin({
  *     dataUrl: './data/',                     // layout-v08.json, municipalities.json, sapporo-wards.json の置き場
- *     includeNorthernTerritoriesVillages: false, // 北方領土の6村を含めるか (既定 false = 179市町村。画面上のボタンでも切替可)
+ *     includeNorthernTerritoriesVillages: true,  // 北方領土の6村を含めるか (既定 true。false で179市町村だけ。画面上のボタンでも切替可)
  *     sources: [
  *       { key: 'demo', name: 'デモ指標', refreshMs: 5000,
  *         fetchValues: async () => ({ label: '…', unit: '…', asOf: '…', min: 0, max: 100, values: { '01100': 12.3 } }) },
@@ -27,7 +27,7 @@ window.TabularMapsPlugin = function TabularMapsPlugin(options) {
   const NAMESPACE = (options && options.namespace) || 'tabularmaps';
   const dataUrl = (options && options.dataUrl) || './data/';
   const sources = (options && options.sources) || [];
-  const includeNTV = !!(options && options.includeNorthernTerritoriesVillages);
+  const includeNTV = !(options && options.includeNorthernTerritoriesVillages === false);
   const ROOT_KEY = 'root';
   const REGION_KEY = 'regions';
 
@@ -110,7 +110,7 @@ window.TabularMapsPlugin = function TabularMapsPlugin(options) {
               if (kind === 'root') {
                 const note = document.createElement('div');
                 note.className = 'tm-openmct-note';
-                note.textContent = '左のツリーから指標を選ぶと、その値でセルが塗られます。既定は179市町村の表示で、「北方領土の6村を含める」で根室振興局管内の6村も描きます。';
+                note.textContent = '左のツリーから指標を選ぶと、その値でセルが塗られます。東端の列の6村は北方領土の村で、「北方領土の6村を含めない」で179市町村だけの表示にできます。';
                 host.appendChild(note);
               }
               if (source) {

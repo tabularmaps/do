@@ -19,7 +19,7 @@ tabularmaps は、地理的な忠実さよりも「一望性」と「安定し�
 - その他 168 市町村: 1×1。
 - 1×2 / 2×1 は合法だが未使用。
 - 構造余白 32 セル: 無名で、意図的に残す。うち東端の列 (x=15) の 6 セルは北方領土の 6 村の席 (下記)。
-- 179 市町村がちょうど 1 回ずつ現れる。既定の表示はこの 179 市町村。
+- 179 市町村がちょうど 1 回ずつ現れる。地図の既定表示は 179 市町村 + 北方領土の 6 村 (D18)。
 
 ```text
 179 市町村の基本セル
@@ -45,10 +45,11 @@ tabularmaps は、地理的な忠実さよりも「一望性」と「安定し�
 
 このリポジトリの扱い (政府の慣行に合わせる):
 
-- 既定は 179 市町村 (北海道庁・総務省の市町村数と同じ範囲)。
+- 地図としては 6 村を既定で描く (地理院地図・全国市町村要覧の地図・国土数値情報と同じ扱い)。市町村数の集計は
+  179 (北海道庁・総務省の市町村数と同じ範囲) で、`board.csv`・`counts.active`・文中の「179 市町村」はこれに従う。
 - 6 村は `status: "northern_territories"` を付けてデータに保持し、`includeNorthernTerritoriesVillages`
-  (UI 表記「北方領土の 6 村を含める」) を明示した時だけ市町村として描く。含めない時、その 6 セルは構造余白と
-  同じ見た目にする。含める時は他の 1×1 と同じ見た目で描き、視覚的な区別は付けない (状態はツールチップと表の文字情報で示す)。
+  (既定 true、UI 表記「北方領土の 6 村を含める / 含めない」) を false にすると 179 市町村だけの表示になる。
+  含めない時、その 6 セルは構造余白と同じ見た目にする。含める時は他の 1×1 と同じ見た目で描き、視覚的な区別は付けない (状態はツールチップと表の文字情報で示す)。
 - 6 村は東端の列 (x=15) の 1×1 にだけ置く (`validate_layout.py` が強制)。含めない表示で凹みを作らないため。
 - 6 村の表示名は正式名称 (「泊村」など)。後志の泊村と区別するため。
 - 表記は政府の公表資料の言い回しに揃える: 「北方領土の 6 村」「根室振興局管内」「市町村としての行政の実態がない」
@@ -162,7 +163,7 @@ docs/                      GitHub Pages: Open MCT ダッシュボード (index.h
 `docs/openmct-plugin.js` は `objects.addProvider` + `composition.addProvider` + `objectViews.addProvider` だけを使う。
 Telemetry API (request/subscribe) と Display Layout は使わない (dwg7/cafebabe の Open MCT ノウハウに従う)。
 指標は `sources: [{key, name, refreshMs, fetchValues() | valuesUrl}]` で渡し、`{label, unit, asOf, min, max,
-values: {<code>: number}}` を返す。`includeNorthernTerritoriesVillages` (既定 false) で 6 村の初期表示を決める。Open MCT は unpkg の 4.3.1 に固定 (dist/openmct.js と espressoTheme.css の
+values: {<code>: number}}` を返す。`includeNorthernTerritoriesVillages` (既定 true) で 6 村の初期表示を決める。Open MCT は unpkg の 4.3.1 に固定 (dist/openmct.js と espressoTheme.css の
 実在を確認済み)。CDN 経由なので `window.SharedWorker = undefined` を先に置く。
 
 ## 一次情報源
