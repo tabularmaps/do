@@ -1,0 +1,265 @@
+/*
+ * tabularmap.js — 北海道 tabular map の描画コア (依存なし、SVG)。
+ *
+ *   const map = TabularMap.create(container, { layout, municipalities, wards });
+ *   map.setSeries({ label: '人口密度', unit: '人/km²', values: { '01100': 1800, ... } });
+ *   map.setMode('value' | 'region');   // データ値の色 / 振興局の色 (無データ時の既定)
+ *   map.setExpandSapporo(true | false); // 札幌4×4を10区に展開
+ *   map.destroy();
+ *
+ * 描画方針 (dataviz の規約に従う):
+ *   - 値の色は単一色相 (青) の light→dark 逐次ランプ。振興局色は「無データ」の識別用にのみ使う。
+ *   - 文字は常にインクの色 (系列色を文字に使わない)。濃いセルでは白インクに切り替える。
+ *   - すべてのセルに名前ラベル + ホバーのツールチップ。表ビューを併設して色だけに頼らない。
+ *   - セル間は 2 単位の面ギャップ。構造余白はヘアライン枠のみ。
+ */
+window.TabularMap = (function () {
+  'use strict';
+
+  const U = 40;      // 1セルの単位長
+  const GAP = 2;     // セル間の面ギャップ
+  const SEQ = ['#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5',
+               '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b'];
+  const REGION = {
+    '宗谷': '#b9dcf0', '留萌': '#b0d3ea', '上川': '#bfe3c9', 'オホーツク': '#b5e2df', '空知': '#f1e0a8',
+    '石狩': '#f3c5a6', '後志': '#dfcbe8', '胆振': '#f0c1b7', '日高': '#f3ccd0', '十勝': '#d6e6ad',
+    '釧路': '#b8d8d6', '根室': '#b0cfcd', '渡島': '#e9c9b1', '檜山': '#dcc2b3'
+  };
+
+  function hexToRgb(h) {
+    return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  }
+  function rgbToHex(r) {
+    return '#' + r.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+  }
+  function luminance(hex) {
+    const [r, g, b] = hexToRgb(hex).map((v) => {
+      v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  function ramp(t) {
+    t = Math.max(0, Math.min(1, t));
+    const p = t * (SEQ.length - 1), i = Math.floor(p), f = p - i;
+    if (i >= SEQ.length - 1) return SEQ[SEQ.length - 1];
+    const a = hexToRgb(SEQ[i]), b = hexToRgb(SEQ[i + 1]);
+    return rgbToHex(a.map((v, k) => v + (b[k] - v) * f));
+  }
+  function inkFor(fill) {
+    return luminance(fill) < 0.3 ? '#ffffff' : '#0b0b0b';
+  }
+  function fmt(v, unit) {
+    if (v == null || Number.isNaN(v)) return '—';
+    const s = Math.abs(v) >= 100 ? Math.round(v).toLocaleString('ja-JP')
+      : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2);
+    return unit ? `${s} ${unit}` : s;
+  }
+  function el(tag, attrs, parent) {
+    const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+
+  function create(container, opts) {
+    const layout = opts.layout;
+    const munis = opts.municipalities ? opts.municipalities.municipalities : [];
+    const byCode = new Map(munis.map((m) => [m.code, m]));
+    const wards = opts.wards || null;
+    const N = layout.grid[0];
+    const state = { mode: opts.mode || 'region', series: null, expandSapporo: !!opts.expandSapporo, showTable: false };
+
+    const root = document.createElement('div');
+    root.className = 'tm-root';
+    container.appendChild(root);
+
+    // ヘッダー: タイトル・凡例・トグル
+    const head = document.createElement('div');
+    head.className = 'tm-head';
+    root.appendChild(head);
+    const titleEl = document.createElement('div');
+    titleEl.className = 'tm-title';
+    head.appendChild(titleEl);
+    const legend = document.createElement('div');
+    legend.className = 'tm-legend';
+    head.appendChild(legend);
+    const controls = document.createElement('div');
+    controls.className = 'tm-controls';
+    head.appendChild(controls);
+    const btnMode = document.createElement('button');
+    btnMode.type = 'button'; btnMode.className = 'tm-btn';
+    controls.appendChild(btnMode);
+    const btnWards = document.createElement('button');
+    btnWards.type = 'button'; btnWards.className = 'tm-btn';
+    btnWards.hidden = !wards;
+    controls.appendChild(btnWards);
+    const btnTable = document.createElement('button');
+    btnTable.type = 'button'; btnTable.className = 'tm-btn';
+    controls.appendChild(btnTable);
+
+    const stage = document.createElement('div');
+    stage.className = 'tm-stage';
+    root.appendChild(stage);
+    const svg = el('svg', { viewBox: `0 0 ${N * U} ${N * U}`, class: 'tm-svg', role: 'img' }, stage);
+    el('title', {}, svg).textContent = '北海道 tabular map';
+    const tip = document.createElement('div');
+    tip.className = 'tm-tip'; tip.hidden = true;
+    stage.appendChild(tip);
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'tm-table'; tableWrap.hidden = true;
+    root.appendChild(tableWrap);
+
+    // セルの生成
+    const cells = [];   // {code, name, bureau, x, y, w, h, rect, text, isWard}
+    function addCell(p, parentOffset, isWard) {
+      const ox = parentOffset ? parentOffset.x : 0, oy = parentOffset ? parentOffset.y : 0;
+      const g = el('g', { class: 'tm-cell' + (isWard ? ' tm-ward' : '') + (p.w * p.h > 1 ? ' tm-block' : ''),
+                          'data-code': p.code }, svg);
+      const x = (ox + p.x) * U + GAP / 2, y = (oy + p.y) * U + GAP / 2;
+      const w = p.w * U - GAP, h = p.h * U - GAP;
+      const rect = el('rect', { x, y, width: w, height: h, rx: p.w * p.h > 1 ? 4 : 3 }, g);
+      const name = isWard ? p.short : p.name;
+      const size = p.w * p.h >= 16 ? 14 : p.w * p.h >= 4 ? 11 : name.length >= 4 ? 7.4 : name.length === 3 ? 9 : 10;
+      const text = el('text', { x: x + w / 2, y: y + h / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+                                'font-size': size }, g);
+      text.textContent = name;
+      const c = { code: p.code, name: isWard ? p.name : (byCode.get(p.code) || {}).fullName || p.name,
+                  bureau: p.bureau, x, y, w, h, g, rect, text, isWard: !!isWard, block: p.w * p.h > 1 };
+      cells.push(c);
+      g.addEventListener('mousemove', (ev) => showTip(c, ev));
+      g.addEventListener('mouseleave', hideTip);
+      g.addEventListener('click', () => { if (opts.onSelect) opts.onSelect(c.code, c); });
+      return c;
+    }
+    for (const s of layout.structural_spaces) {
+      el('rect', { x: s[0] * U + GAP / 2, y: s[1] * U + GAP / 2, width: U - GAP, height: U - GAP, rx: 3,
+                   class: 'tm-space' }, svg);
+    }
+    let sapporo = null;
+    for (const p of layout.placements) {
+      const c = addCell(p, null, false);
+      if (p.code === '01100') sapporo = { placement: p, cell: c };
+    }
+    const wardCells = [];
+    if (wards && sapporo) {
+      for (const w of wards.wards) {
+        const c = addCell({ ...w, bureau: '石狩' }, { x: sapporo.placement.x, y: sapporo.placement.y }, true);
+        wardCells.push(c);
+      }
+    }
+
+    function valueOf(code) {
+      const s = state.series;
+      if (!s || !s.values) return undefined;
+      const v = s.values[code];
+      return typeof v === 'number' && !Number.isNaN(v) ? v : undefined;
+    }
+    function range() {
+      const s = state.series;
+      if (!s) return [0, 1];
+      let vals = Object.values(s.values || {}).filter((v) => typeof v === 'number' && !Number.isNaN(v));
+      const lo = s.min != null ? s.min : (vals.length ? Math.min(...vals) : 0);
+      const hi = s.max != null ? s.max : (vals.length ? Math.max(...vals) : 1);
+      return [lo, hi > lo ? hi : lo + 1];
+    }
+
+    function paint() {
+      const [lo, hi] = range();
+      const valueMode = state.mode === 'value' && state.series;
+      for (const c of cells) {
+        const visible = c.isWard ? state.expandSapporo : !(state.expandSapporo && c.code === '01100');
+        c.g.style.display = visible ? '' : 'none';
+        let fill;
+        if (valueMode) {
+          const v = valueOf(c.code);
+          fill = v === undefined ? 'var(--tm-nodata)' : ramp((v - lo) / (hi - lo));
+        } else {
+          fill = REGION[c.bureau] || 'var(--tm-nodata)';
+        }
+        c.rect.setAttribute('fill', fill);
+        c.text.setAttribute('fill', fill.startsWith('#') ? inkFor(fill) : 'var(--tm-ink)');
+      }
+      // 凡例
+      legend.innerHTML = '';
+      if (valueMode) {
+        const bar = document.createElement('div');
+        bar.className = 'tm-legend-bar';
+        bar.style.background = `linear-gradient(90deg, ${SEQ.join(',')})`;
+        const lo_ = document.createElement('span'); lo_.textContent = fmt(lo, state.series.unit);
+        const hi_ = document.createElement('span'); hi_.textContent = fmt(hi, state.series.unit);
+        legend.append(lo_, bar, hi_);
+        const nd = document.createElement('span');
+        nd.className = 'tm-legend-nodata'; nd.textContent = '無データ';
+        legend.appendChild(nd);
+      } else {
+        for (const b in REGION) {
+          const sw = document.createElement('span');
+          sw.className = 'tm-legend-sw';
+          sw.innerHTML = `<i style="background:${REGION[b]}"></i>${b}`;
+          legend.appendChild(sw);
+        }
+      }
+      titleEl.textContent = valueMode
+        ? `${state.series.label || ''}${state.series.asOf ? '　' + state.series.asOf : ''}`
+        : (opts.title || '北海道 179市町村 — 振興局');
+      btnMode.textContent = state.mode === 'value' ? '振興局の色で見る' : 'データ値の色で見る';
+      btnMode.disabled = !state.series;
+      btnWards.textContent = state.expandSapporo ? '札幌を1市に畳む' : '札幌を10区に展開';
+      btnTable.textContent = state.showTable ? '表を隠す' : '表で見る';
+      tableWrap.hidden = !state.showTable;
+      if (state.showTable) renderTable();
+    }
+
+    function renderTable() {
+      const s = state.series;
+      const rows = layout.placements.map((p) => ({ code: p.code, name: (byCode.get(p.code) || {}).fullName || p.name,
+                                                    bureau: p.bureau, v: valueOf(p.code) }));
+      if (s) rows.sort((a, b) => (b.v ?? -Infinity) - (a.v ?? -Infinity));
+      const t = document.createElement('table');
+      t.innerHTML = `<thead><tr><th>コード</th><th>市町村</th><th>振興局</th><th>${s ? (s.label || '値') + (s.unit ? ` (${s.unit})` : '') : ''}</th></tr></thead>`;
+      const tb = document.createElement('tbody');
+      for (const r of rows) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.code}</td><td>${r.name}</td><td>${r.bureau}</td><td class="tm-num">${s ? fmt(r.v) : ''}</td>`;
+        tb.appendChild(tr);
+      }
+      t.appendChild(tb);
+      tableWrap.innerHTML = '';
+      tableWrap.appendChild(t);
+    }
+
+    function showTip(c, ev) {
+      const v = valueOf(c.code);
+      const s = state.series;
+      tip.innerHTML = `<b>${c.name}</b><span class="tm-tip-sub">${c.isWard ? '札幌市' : c.bureau} · ${c.code}</span>`
+        + (s ? `<span class="tm-tip-val">${s.label || ''} ${fmt(v, s.unit)}</span>` : '');
+      tip.hidden = false;
+      const r = stage.getBoundingClientRect();
+      let x = ev.clientX - r.left + 12, y = ev.clientY - r.top + 12;
+      if (x + tip.offsetWidth > r.width) x = ev.clientX - r.left - tip.offsetWidth - 12;
+      if (y + tip.offsetHeight > r.height) y = ev.clientY - r.top - tip.offsetHeight - 12;
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+      for (const o of cells) o.g.classList.toggle('tm-hover', o === c);
+    }
+    function hideTip() {
+      tip.hidden = true;
+      for (const o of cells) o.g.classList.remove('tm-hover');
+    }
+
+    btnMode.addEventListener('click', () => { state.mode = state.mode === 'value' ? 'region' : 'value'; paint(); });
+    btnWards.addEventListener('click', () => { state.expandSapporo = !state.expandSapporo; paint(); });
+    btnTable.addEventListener('click', () => { state.showTable = !state.showTable; paint(); });
+
+    paint();
+    return {
+      setSeries(series) { state.series = series || null; if (series) state.mode = 'value'; paint(); },
+      setMode(mode) { state.mode = mode; paint(); },
+      setExpandSapporo(v) { state.expandSapporo = !!v; paint(); },
+      highlight(code) { for (const o of cells) o.g.classList.toggle('tm-selected', o.code === code); },
+      element: root,
+      destroy() { if (root.parentNode) root.parentNode.removeChild(root); }
+    };
+  }
+
+  return { create, ramp, REGION };
+})();
