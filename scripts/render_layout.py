@@ -42,7 +42,7 @@ def render(layout, out, title=None, subtitle=None, with_villages=False):
     d = ImageDraw.Draw(im)
     title = title or f"tabularmaps 北海道 {layout['version']}"
     subtitle = subtitle or ('16×16 全道・三階級 (札幌4×4、広域拠点10か所2×2、その他168市町村1×1)'
-                            + ('　＋ 北方領土の6村' if with_villages and nt else ''))
+                            .replace('その他168市町村1×1)', 'その他168市町村1×1、根室振興局管内の6村)' if with_villages and nt else 'その他168市町村1×1)'))
     d.text((M, 25), title, font=font(42), fill='#172033')
     d.text((M, 88), subtitle, font=font(22), fill='#64748b')
     for i in range(n + 1):

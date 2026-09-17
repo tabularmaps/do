@@ -226,7 +226,7 @@ window.TabularMap = (function () {
       }
       titleEl.textContent = valueMode
         ? `${state.series.label || ''}${state.series.asOf ? '　' + state.series.asOf : ''}`
-        : (opts.title || (state.includeNTV && hasNTV ? '北海道 179市町村 + 北方領土の6村 — 振興局' : '北海道 179市町村 — 振興局'));
+        : (opts.title || '北海道');   // 「179市町村 + 6村」のような並列表現は北方領土が北海道の外にあるように読めるので使わない
       btnMode.textContent = state.mode === 'value' ? '振興局の色で見る' : 'データ値の色で見る';
       btnMode.disabled = !state.series;
       btnWards.textContent = state.expandSapporo ? '札幌を1市に畳む' : '札幌を10区に展開';
