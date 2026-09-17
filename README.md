@@ -3,11 +3,16 @@
 北海道の 179 市町村を、ダッシュボードで一望できる固定 16×16 グリッドに圧縮した「表形式地図」と、
 それを [Open MCT](https://github.com/nasa/openmct) のツリーに載せるプラグインです。
 
-![tabularmaps 北海道 v07](prototypes/v07/tabularmaps_hokkaido_v07.png)
+![tabularmaps 北海道 v08](prototypes/v08/tabularmaps_hokkaido_v08.png)
+
+6 村を含めた表示: [prototypes/v08/tabularmaps_hokkaido_v08_with_villages.png](prototypes/v08/tabularmaps_hokkaido_v08_with_villages.png)
 
 - 札幌 4×4、広域拠点 10 か所 (函館・小樽・旭川・稚内・北見・苫小牧・室蘭・帯広・釧路・根室) 2×2、その他 168 市町村 1×1。
 - 16 + 40 + 168 = 224 セルを占有し、残り 32 セルは無名の構造余白 (海・海峡・山脈の継ぎ目)。
-- 振興局ごとの領土は人が描き (`design/territories-v07.txt`)、領土内の並び順だけを最適化器が解きます。
+- 北方領土の 6 村 (根室振興局管内の色丹村・泊村・留夜別村・留別村・紗那村・蘂取村) は、総務省の市町村数の注記
+  「北方領土の 6 村を含めると」と同じ扱いで、既定では含めず (北海道庁「道内 179 市町村」と同じ範囲)、
+  「北方領土の 6 村を含める」を明示した時だけ東端の列に市町村として描きます (国土地理院の面積調と同じ 185 の範囲)。
+- 振興局ごとの領土は人が描き (`design/territories-v08.txt`)、領土内の並び順だけを最適化器が解きます。
 - 地理は一望性のために歪めますが、南北・東西の大まかな関係と振興局のまとまりは保ちます
   (役場の緯度で塗ると北→南に単調に濃→淡になることをダッシュボード上で確認できます)。
 
@@ -32,6 +37,7 @@ python3 -m http.server 8765 --directory docs
 ```js
 openmct.install(TabularMapsPlugin({
   dataUrl: './data/',
+  includeNorthernTerritoriesVillages: false,   // 北方領土の 6 村を含めるか (既定 false = 179 市町村)
   sources: [{
     key: 'pop', name: '人口密度', refreshMs: 600000,
     fetchValues: async () => ({
@@ -54,6 +60,7 @@ openmct.install(TabularMapsPlugin({
   const map = TabularMap.create(document.getElementById('panel'), { layout, municipalities, wards });
   map.setSeries({ label: '…', unit: '…', values: { '01100': 12.3 } });
   map.setExpandSapporo(true);   // 札幌 4×4 を 10 区に展開
+  map.setIncludeNorthernTerritoriesVillages(true);   // 北方領土の 6 村を含める (既定 false)
 </script>
 ```
 
@@ -61,28 +68,32 @@ openmct.install(TabularMapsPlugin({
 
 | ファイル | 内容 |
 |---|---|
-| `data/municipalities.json` | 179 市町村マスター (全国地方公共団体コード上 5 桁・振興局・区分・役場の概略座標・階級) |
-| `data/layout-v07.json` | 現行の配置。`placements` (long-form) が一次、`board` は派生、`structural_spaces` は余白 32 セル |
-| `data/board.csv` | [tabularmaps/8bit](https://github.com/tabularmaps/8bit) 互換の 16×16 CSV |
+| `data/municipalities.json` | 179 市町村 + 北方領土 6 村のマスター (全国地方公共団体コード上 5 桁・振興局・区分・役場の概略座標・階級・status) |
+| `data/layout-v08.json` | 現行の配置。`placements` (long-form、status 付き) が一次、`board` (179) / `board_all` (185) は派生、`structural_spaces` は余白 26 セル |
+| `data/board.csv`, `data/board-with-villages.csv` | [tabularmaps/8bit](https://github.com/tabularmaps/8bit) 互換の 16×16 CSV (179 / 6 村込み) |
 | `data/sapporo-wards.json` | 札幌 10 区の 4×4 内部配置 |
-| `design/territories-v07.txt` | 振興局の領土図 (人手) |
+| `design/territories-v08.txt` | 振興局の領土図 (人手)。X が 6 村の席 |
 
 ## 版を作り直す
 
 ```bash
-python3 scripts/count_territories.py design/territories-v07.txt   # 領土図のセル収支
-python3 scripts/generate_layout.py --version v07                   # 配置生成 (numpy / scipy)
-python3 scripts/validate_layout.py data/layout-v07.json            # 機械検証
-python3 scripts/render_layout.py data/layout-v07.json prototypes/v07/tabularmaps_hokkaido_v07.png  # PNG (Pillow)
-python3 scripts/export_board_csv.py                                # board.csv
+python3 scripts/count_territories.py design/territories-v08.txt   # 領土図のセル収支
+python3 scripts/generate_layout.py --version v08                   # 配置生成 (numpy / scipy)
+python3 scripts/validate_layout.py data/layout-v08.json            # 機械検証
+python3 scripts/render_layout.py data/layout-v08.json prototypes/v08/tabularmaps_hokkaido_v08.png  # PNG (Pillow)
+python3 scripts/render_layout.py data/layout-v08.json prototypes/v08/tabularmaps_hokkaido_v08_with_villages.png --with-villages
+python3 scripts/export_board_csv.py data/layout-v08.json data/board.csv   # board.csv
 python3 scripts/check_codes.py                                     # 総務省のコード一覧との突き合わせ (要ネット)
 ```
 
-設計規約は [CLAUDE.md](CLAUDE.md)、経緯と却下案は [DECISIONS.md](DECISIONS.md)、前版は `prototypes/v06/`。
+設計規約は [CLAUDE.md](CLAUDE.md)、経緯と却下案は [DECISIONS.md](DECISIONS.md)、前版は `prototypes/v07/`・`prototypes/v06/`。
 
 ## 一次情報源
 
 - 北海道庁「総合振興局・振興局別市町村」 https://www.pref.hokkaido.lg.jp/link/shichoson/
+- 総務省「都道府県コード並びに市区町村コード」 https://www.soumu.go.jp/denshijiti/code.html
+- 総務省「市町村数」 https://www.soumu.go.jp/kouiki/kouiki.html
+- 国土地理院「全国都道府県市区町村別面積調」 https://www.gsi.go.jp/KOKUJYOHO/MENCHO-title.htm
 - 札幌市 区政概要・人口統計 https://www.city.sapporo.jp/shimin/shinko/kusei-suishin/gaiyo/index.html
 
 ## 兄弟プロジェクト

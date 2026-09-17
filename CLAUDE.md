@@ -11,25 +11,48 @@ tabularmaps は、地理的な忠実さよりも「一望性」と「安定し�
 
 これは通常の地図でも、選挙区カルトグラムでも、人口比例カルトグラムでも、市町村の格付けでもない。
 
-## 現在の基準 (v07)
+## 現在の基準 (v08)
 
 - グリッド: 16×16 = 256 セル。
 - 札幌: 4×4 (16 セル)。
 - 広域拠点 10 か所: 2×2 (函館・小樽・旭川・稚内・北見・苫小牧・室蘭・帯広・釧路・根室)。
 - その他 168 市町村: 1×1。
 - 1×2 / 2×1 は合法だが未使用。
-- 構造余白 32 セル: 無名で、意図的に残す。
-- 179 市町村がちょうど 1 回ずつ現れる。
+- 構造余白 32 セル: 無名で、意図的に残す。うち東端の列 (x=15) の 6 セルは北方領土の 6 村の席 (下記)。
+- 179 市町村がちょうど 1 回ずつ現れる。既定の表示はこの 179 市町村。
 
 ```text
 179 市町村の基本セル
 +15 札幌 4×4 の追加分
 +30 2×2 拠点 10 か所の追加分
 =224 占有セル
-256 − 224 = 32 構造余白
+256 − 224 = 32 構造余白 (= 26 + 北方領土の 6 村の席 6)
 ```
 
 32 セルの余白は「あるから使う」ものではない。
+
+## 北方領土の 6 村の扱い
+
+事実 (一次情報は `DECISIONS.md` D16):
+
+- 北方領土 (歯舞群島・色丹島・国後島・択捉島) は根室振興局管内。歯舞群島は根室市の一部、
+  色丹島・国後島・択捉島には 色丹村・泊村・留夜別村・留別村・紗那村・蘂取村 の 6 村がある。
+- 6 村は地方自治法上の地方公共団体として存置され、全国地方公共団体コード (01695〜01700) を持つ。
+  一方、現在は日本の施政下になく、村としての行政は行われていない。
+- 政府の慣行: 北海道庁は「道内 179 市町村」、総務省の市町村数は 179 (35 市 129 町 15 村) で「北方領土の 6 村を
+  含めると」と注記、総務省のコード一覧と国土地理院の面積調は 6 村を収録する (面積調の北海道は 185 市町村)。
+
+このリポジトリの扱い (政府の慣行に合わせる):
+
+- 既定は 179 市町村 (北海道庁・総務省の市町村数と同じ範囲)。
+- 6 村は `status: "northern_territories"` を付けてデータに保持し、`includeNorthernTerritoriesVillages`
+  (UI 表記「北方領土の 6 村を含める」) を明示した時だけ市町村として描く。含めない時、その 6 セルは構造余白と
+  同じ見た目にする。
+- 6 村は東端の列 (x=15) の 1×1 にだけ置く (`validate_layout.py` が強制)。含めない表示で凹みを作らないため。
+- 6 村の表示名は正式名称 (「泊村」など)。後志の泊村と区別するため。
+- 表記は政府の公表資料の言い回しに揃える: 「北方領土の 6 村」「根室振興局管内」「現在は日本の施政下になく、
+  村としての行政は行われていない」。領土の帰属についてこれ以外の表現をしない。海のセルに名前を付けない
+  (海峡も同じ)。「北方領土を含む/含まない」とは書かず、含める対象は常に「6 村」とする。
 
 拠点 10 か所の一覧は作業仮説であり、変えるには全道の配置を比較した上で明示的に決める。
 
@@ -66,7 +89,7 @@ v07 の余白の役割一覧は `DECISIONS.md` D8。
 
 厳密な行政境界の隣接は要求しない。
 
-## 設計知識 (v07 で採用)
+## 設計知識 (v07–v08 で採用)
 
 - 小樽は札幌の左上 (北西) に読める位置。積丹半島は小樽の北に伸びる。
 - 石狩平野は 札幌→江別→岩見沢→美唄→砂川→滝川→深川→旭川 の鎖として読める。
@@ -76,6 +99,9 @@ v07 の余白の役割一覧は `DECISIONS.md` D8。
 - 渡島半島は 2 列の帯に「展開」する: 上段 = 噴火湾沿い (長万部→八雲→森→鹿部→七飯→函館)、
   下段 = 津軽海峡沿い (松前→福島→知内→木古内→北斗→函館)。函館は帯の東端。
 - 根室は南東端、北に別海・中標津・標津・羅臼。釧路は根室の南西、東に釧路町・厚岸・浜中。
+- オホーツク東岸は x=14 の列に 網走→小清水→斜里→清里 と北から並び、羅臼 (根室) につながる。
+- 東端の列 (x=15) は北から 蘂取村・紗那村・留別村 (択捉島)、海峡、留夜別村・泊村 (国後島)、海峡、色丹村、
+  別海、根室。6 村を含めない表示では根室より北は全て余白として読める。
 
 ## メタデータとフットプリントの分離
 
@@ -93,11 +119,11 @@ v07 の余白の役割一覧は `DECISIONS.md` D8。
 ## リポジトリ構成
 
 ```text
-data/municipalities.json   179 市町村マスター (コード・振興局・区分・役場の概略座標・階級)
-data/layout-v07.json       現行の配置 (一次データ、long-form)
-data/board.csv             8bit 互換の 16×16 派生表現
+data/municipalities.json   179 市町村 + 北方領土 6 村のマスター (コード・振興局・区分・役場の概略座標・階級・status)
+data/layout-v08.json       現行の配置 (一次データ、long-form)
+data/board.csv             8bit 互換の 16×16 派生表現 (179 市町村)。board-with-villages.csv は 6 村込み
 data/sapporo-wards.json    札幌 10 区の内部配置
-design/territories-v07.txt 振興局の領土図 (人手で描く 16 行×16 文字)
+design/territories-v08.txt 振興局の領土図 (人手で描く 16 行×16 文字、X = 6 村の席)
 scripts/generate_layout.py 配置生成器 (領土図 + 拠点・ピン + 領土内の最適化)
 scripts/validate_layout.py 機械検証 (CI で回す対象)
 scripts/render_layout.py   レビュー用 PNG
@@ -108,10 +134,11 @@ docs/                      GitHub Pages: Open MCT ダッシュボード (index.h
 
 ## 配置データの契約 (layout-*.json)
 
-- `placements`: `[{code, name, bureau, x, y, w, h}]` が一次表現。`code` は全国地方公共団体コード上 5 桁、
-  `(x, y)` は左上セル (原点は左上)、`w×h` はフットプリント。
-- `structural_spaces`: `[[x, y], ...]` 32 セル (無名だが一次データ)。
-- `board`: 16×16 の名前配列 (派生、空白は `''`)。
+- `placements`: `[{code, name, bureau, status, x, y, w, h}]` が一次表現。`code` は全国地方公共団体コード上 5 桁、
+  `(x, y)` は左上セル (原点は左上)、`w×h` はフットプリント、`status` は `active` (179) か `northern_territories` (6 村)。
+- `structural_spaces`: `[[x, y], ...]` 26 セル (無名だが一次データ)。6 村の席は `northern_territories.cells`。
+- `counts`: `{active: 179, northern_territories: 6}`。
+- `board`: 16×16 の名前配列 (派生、179 市町村、空白は `''`)。`board_all` は 6 村込み。
 - `generator`: `{script, territories, seed, metrics}`。
 兄弟プロジェクト tabularmaps/cldr とこのキー名を共有する。
 
@@ -122,7 +149,7 @@ docs/                      GitHub Pages: Open MCT ダッシュボード (index.h
 3. `scripts/generate_layout.py` の `ANCHOR_HINTS` (大ブロック) と `PINS` (設計上固定する 1×1) を更新する。
    ピンには必ず理由コメントを付ける。
 4. `python3 scripts/generate_layout.py --version vNN` → `python3 scripts/validate_layout.py data/layout-vNN.json`
-   → `python3 scripts/render_layout.py data/layout-vNN.json prototypes/vNN/….png`。
+   → `python3 scripts/render_layout.py data/layout-vNN.json prototypes/vNN/….png` (6 村込みは `--with-villages`)。
 5. 全体を見てから 1×2 昇格を検討する。昇格・降格は理由とともに `DECISIONS.md` に列挙する。
 6. 各構造余白が仕事をしているか確認する。
 7. `docs/data/` に配置データを複製し、`docs/openmct-plugin.js` の参照ファイル名を更新する。
@@ -134,13 +161,16 @@ docs/                      GitHub Pages: Open MCT ダッシュボード (index.h
 `docs/openmct-plugin.js` は `objects.addProvider` + `composition.addProvider` + `objectViews.addProvider` だけを使う。
 Telemetry API (request/subscribe) と Display Layout は使わない (dwg7/cafebabe の Open MCT ノウハウに従う)。
 指標は `sources: [{key, name, refreshMs, fetchValues() | valuesUrl}]` で渡し、`{label, unit, asOf, min, max,
-values: {<code>: number}}` を返す。Open MCT は unpkg の 4.3.1 に固定 (dist/openmct.js と espressoTheme.css の
+values: {<code>: number}}` を返す。`includeNorthernTerritoriesVillages` (既定 false) で 6 村の初期表示を決める。Open MCT は unpkg の 4.3.1 に固定 (dist/openmct.js と espressoTheme.css の
 実在を確認済み)。CDN 経由なので `window.SharedWorker = undefined` を先に置く。
 
 ## 一次情報源
 
 - 北海道庁「総合振興局・振興局別市町村」 https://www.pref.hokkaido.lg.jp/link/shichoson/
   https://www.pref.hokkaido.lg.jp/gyosei/shicho/index.html
+- 総務省「都道府県コード並びに市区町村コード」 https://www.soumu.go.jp/denshijiti/code.html (照合は `scripts/check_codes.py`)
+- 総務省「市町村数」 https://www.soumu.go.jp/kouiki/kouiki.html
+- 国土地理院「全国都道府県市区町村別面積調」 https://www.gsi.go.jp/KOKUJYOHO/MENCHO-title.htm
 - 札幌市 区政概要・人口統計 https://www.city.sapporo.jp/shimin/shinko/kusei-suishin/gaiyo/index.html
   https://www.city.sapporo.jp/toukei/jinko/jinko.html
 - `data/municipalities.json` の座標は役場所在地の概略値 (±0.05° 程度) で、配置の目安にのみ使う。

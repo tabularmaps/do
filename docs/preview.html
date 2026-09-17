@@ -31,7 +31,7 @@
     <script>
       (async function () {
         const [layout, municipalities, wards] = await Promise.all([
-          fetch('./data/layout-v07.json').then((r) => r.json()),
+          fetch('./data/layout-v08.json').then((r) => r.json()),
           fetch('./data/municipalities.json').then((r) => r.json()),
           fetch('./data/sapporo-wards.json').then((r) => r.json())
         ]);

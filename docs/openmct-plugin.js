@@ -9,7 +9,8 @@
  *
  * 使い方:
  *   openmct.install(TabularMapsPlugin({
- *     dataUrl: './data/',                     // layout-v07.json, municipalities.json, sapporo-wards.json の置き場
+ *     dataUrl: './data/',                     // layout-v08.json, municipalities.json, sapporo-wards.json の置き場
+ *     includeNorthernTerritoriesVillages: false, // 北方領土の6村を含めるか (既定 false = 179市町村。画面上のボタンでも切替可)
  *     sources: [
  *       { key: 'demo', name: 'デモ指標', refreshMs: 5000,
  *         fetchValues: async () => ({ label: '…', unit: '…', asOf: '…', min: 0, max: 100, values: { '01100': 12.3 } }) },
@@ -26,6 +27,7 @@ window.TabularMapsPlugin = function TabularMapsPlugin(options) {
   const NAMESPACE = (options && options.namespace) || 'tabularmaps';
   const dataUrl = (options && options.dataUrl) || './data/';
   const sources = (options && options.sources) || [];
+  const includeNTV = !!(options && options.includeNorthernTerritoriesVillages);
   const ROOT_KEY = 'root';
   const REGION_KEY = 'regions';
 
@@ -33,7 +35,7 @@ window.TabularMapsPlugin = function TabularMapsPlugin(options) {
   function loadData() {
     if (!dataPromise) {
       dataPromise = Promise.all([
-        fetch(dataUrl + 'layout-v07.json').then((r) => r.json()),
+        fetch(dataUrl + 'layout-v08.json').then((r) => r.json()),
         fetch(dataUrl + 'municipalities.json').then((r) => r.json()),
         fetch(dataUrl + 'sapporo-wards.json').then((r) => r.json())
       ]).then(([layout, municipalities, wards]) => ({ layout, municipalities, wards }));
@@ -102,13 +104,13 @@ window.TabularMapsPlugin = function TabularMapsPlugin(options) {
               const source = kind === 'source' ? sourceByKey.get(domainObject.tabularmap.source) : null;
               map = window.TabularMap.create(host, {
                 layout: data.layout, municipalities: data.municipalities, wards: data.wards,
-                mode: 'region', title: domainObject.name,
+                mode: 'region', title: domainObject.name, includeNorthernTerritoriesVillages: includeNTV,
                 onSelect: (code, cell) => { if (source && source.onSelect) source.onSelect(code, cell); }
               });
               if (kind === 'root') {
                 const note = document.createElement('div');
                 note.className = 'tm-openmct-note';
-                note.textContent = '左のツリーから指標を選ぶと、その値でセルが塗られます。';
+                note.textContent = '左のツリーから指標を選ぶと、その値でセルが塗られます。既定は179市町村の表示で、「北方領土の6村を含める」で根室振興局管内の6村も描きます。';
                 host.appendChild(note);
               }
               if (source) {

@@ -7,14 +7,14 @@
 振興局の継ぎ目や構造余白の位置は設計判断であり、目的関数の副産物にしない。
 
   入力 1. design/territories-<version>.txt — 16行×16文字の領土図 (人手)
-  入力 2. data/municipalities.json         — 179市町村 (振興局・区分・概略座標)
+  入力 2. data/municipalities.json         — 179市町村 + 北方領土6村 (振興局・区分・概略座標・status)
   段階 A. 2×2拠点を ANCHOR_HINTS の位置に置く (自振興局の領土内であることを検証)
   段階 B. 各振興局の1×1市町村を、領土内の残りセルへ地理座標で初期割当
   段階 C. 焼きなまし: 同じ振興局の1×1セル同士の入れ替えで
           (a) 地理的隣接 (Delaunay) の保存  (b) 領土内での方位妥当性 を改善
 
 出力: data/layout-<version>.json。画像は scripts/render_layout.py が作る。
-使い方: python3 scripts/generate_layout.py [--version v07] [--seed 1] [--iters 200000]
+使い方: python3 scripts/generate_layout.py [--version v08] [--seed 1] [--iters 200000]
 """
 import argparse
 import json
@@ -36,7 +36,8 @@ N = 16
 
 LETTER = {'S': '宗谷', 'R': '留萌', 'K': '上川', 'O': 'オホーツク', 'Z': '空知', 'I': '石狩',
           'P': '石狩', 'G': '後志', 'B': '胆振', 'H': '日高', 'T': '十勝', 'U': '釧路',
-          'N': '根室', 'W': '渡島', 'E': '檜山'}
+          'N': '根室', 'W': '渡島', 'E': '檜山',
+          'X': '北方領土'}   # 北方領土の6村 (根室振興局管内、既定表示では余白として描く)
 
 # 大ブロックの左上セル。すべて設計判断 (理由は DECISIONS.md)。
 ANCHOR_HINTS = {
@@ -71,6 +72,19 @@ PINS = {
     # 下段=津軽海峡沿い (松前→福島→知内→木古内→北斗→函館)。上段と松前を固定し、下段は隣接から決まる。
     '長万部': (2, 14), '八雲': (3, 14), '森': (4, 14), '鹿部': (5, 14), '七飯': (6, 14),
     '松前': (2, 15), '知内': (4, 15),
+    # オホーツク東岸 (v08): 網走→小清水→斜里→清里 を x=14 の列に北から並べ、羅臼 (根室) へつなぐ。
+    # 領土が幅広の塊になったため、正規化座標だけでは網走が最北端に置かれてしまう。
+    '網走': (14, 2), '小清水': (14, 3), '斜里': (14, 4), '清里': (14, 5),
+    '置戸': (12, 5),   # 北見の南西 (訓子府と並ぶ)。領土の形の都合で北側に置かれるのを防ぐ
+}
+
+# 北方領土の6村 (v08 以降)。東端の列に北から 択捉 (蘂取・紗那・留別)、国後 (留夜別・泊)、色丹 の順。
+# (15,3) (15,6) は海峡にあたる余白。既定の179表示ではこの列全体が海として読めるように、6村は x=15 だけに置く。
+# 6村の name は正式名称 (「泊村」等) のまま扱う: 後志の泊村 (01403) と同名のため、表示上も区別する。
+NT_PINS = {
+    '蘂取村': (15, 0), '紗那村': (15, 1), '留別村': (15, 2),
+    '留夜別村': (15, 4), '泊村': (15, 5),
+    '色丹村': (15, 7),
 }
 
 # 地理座標 → グリッド座標 (方位妥当性の目標にのみ使う)。
@@ -88,6 +102,11 @@ NEIGHBOR_KM_SPARSE = 85.0 # これ以下なら、どちらかの端点の3近傍
 def load_munis():
     data = json.loads((ROOT / 'data' / 'municipalities.json').read_text('utf-8'))
     return data['municipalities']
+
+
+def territory_key(m):
+    """領土図上での所属: 179市町村は振興局、北方領土の6村は 'X' の領土。"""
+    return '北方領土' if m.get('status') == 'northern_territories' else m['bureau']
 
 
 def load_territories(version):
@@ -147,14 +166,19 @@ def initial_assignment(munis, terr, occupied):
     """振興局ごとに、地理bboxを領土bboxへ正規化した位置で1×1を割り当てる。"""
     cells, targets = {}, {}
     by_name = {m['name']: m for m in munis}
-    for name, c in PINS.items():
-        assert terr.get(c) == by_name[name]['bureau'] and c not in occupied, (name, c)
+    pins = dict(PINS)
+    if any(t == '北方領土' for t in terr.values()):
+        pins.update(NT_PINS)
+    for name, c in pins.items():
+        assert terr.get(c) == territory_key(by_name[name]) and c not in occupied, (name, c)
         cells[name] = c; occupied = occupied | {c}
         targets[name] = c
-    for b in sorted({m['bureau'] for m in munis}):
-        ms = [m for m in munis if m['bureau'] == b and m['footprint'] == [1, 1] and m['name'] not in PINS]
+    for b in sorted({territory_key(m) for m in munis}):
+        ms = [m for m in munis if territory_key(m) == b and m['footprint'] == [1, 1] and m['name'] not in pins]
         free = sorted(c for c, t in terr.items() if t == b and c not in occupied)
         assert len(free) == len(ms), (b, len(free), len(ms))
+        if not ms:
+            continue  # 全員がピン留め (北方領土の6村など)
         lons = [m['lon'] for m in ms]; lats = [m['lat'] for m in ms]
         xs = [c[0] for c in free]; ys = [c[1] for c in free]
 
@@ -181,7 +205,7 @@ class Annealer:
     def __init__(self, munis, blocks, cells, edges, targets, rng):
         self.rng = rng
         self.munis = munis
-        self.bureau = [m['bureau'] for m in munis]
+        self.bureau = [territory_key(m) for m in munis]
         self.target = [targets.get(m['name']) for m in munis]
         self.rect = {}
         idx = {m['name']: i for i, m in enumerate(munis)}
@@ -198,8 +222,9 @@ class Annealer:
                 for xx in range(x, x + w):
                     self.grid[(xx, yy)] = i
         self.movable = {}
+        pinned = set(PINS) | set(NT_PINS)
         for c, i in self.grid.items():
-            if self.rect[i][2:] == (1, 1) and munis[i]['name'] not in PINS:
+            if self.rect[i][2:] == (1, 1) and munis[i]['name'] not in pinned:
                 self.movable.setdefault(self.bureau[i], []).append(c)
         self.bureaus = [b for b, cs in self.movable.items() if len(cs) >= 2]
 
@@ -284,16 +309,25 @@ def to_layout(version, munis, blocks, cells, structural, metrics, seed):
     placements = []
     for name, (x, y, w, h) in blocks.items():
         m = by_name[name]
-        placements.append({'code': m['code'], 'name': name, 'bureau': m['bureau'], 'x': x, 'y': y, 'w': w, 'h': h})
+        placements.append({'code': m['code'], 'name': name, 'bureau': m['bureau'], 'status': m.get('status', 'active'),
+                           'x': x, 'y': y, 'w': w, 'h': h})
     for name, (x, y) in cells.items():
         m = by_name[name]
-        placements.append({'code': m['code'], 'name': name, 'bureau': m['bureau'], 'x': x, 'y': y, 'w': 1, 'h': 1})
+        placements.append({'code': m['code'], 'name': name, 'bureau': m['bureau'], 'status': m.get('status', 'active'),
+                           'x': x, 'y': y, 'w': 1, 'h': 1})
     placements.sort(key=lambda p: p['code'])
-    board = [[''] * N for _ in range(N)]
-    for p in placements:
-        for yy in range(p['y'], p['y'] + p['h']):
-            for xx in range(p['x'], p['x'] + p['w']):
-                board[yy][xx] = p['name']
+    def make_board(include_nt):
+        board = [[''] * N for _ in range(N)]
+        for p in placements:
+            if p['status'] != 'active' and not include_nt:
+                continue
+            for yy in range(p['y'], p['y'] + p['h']):
+                for xx in range(p['x'], p['x'] + p['w']):
+                    board[yy][xx] = p['name']
+        return board
+    board = make_board(False)
+    nt = [p for p in placements if p['status'] == 'northern_territories']
+    counts = {'active': sum(p['status'] == 'active' for p in placements), 'northern_territories': len(nt)}
     return {
         'version': version,
         'grid': [N, N],
@@ -301,9 +335,15 @@ def to_layout(version, munis, blocks, cells, structural, metrics, seed):
         'regional_anchors': [n for n, (x, y, w, h) in blocks.items() if (w, h) == (2, 2)],
         'generator': {'script': 'scripts/generate_layout.py', 'territories': f'design/territories-{version}.txt',
                       'seed': seed, 'metrics': metrics},
+        'counts': counts,
         'placements': placements,
         'structural_spaces': [list(c) for c in structural],
         'board': board,
+        **({'northern_territories': {
+                'note': '根室振興局管内の6村。現在は日本の施政下になく村としての行政は行われていない。'
+                        '既定表示 (179市町村) では構造余白として描き、明示的に含める時だけ市町村として描く。',
+                'cells': [[p['x'], p['y']] for p in nt],
+            }, 'board_all': make_board(True)} if nt else {}),
     }
 
 
@@ -314,7 +354,7 @@ def print_board(board):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--version', default='v07')
+    ap.add_argument('--version', default='v08')
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--iters', type=int, default=200000)
     ap.add_argument('--no-anneal', action='store_true')
@@ -322,12 +362,16 @@ def main():
     args = ap.parse_args()
     rng = random.Random(args.seed)
     munis = load_munis()
-    edges = build_neighbor_graph(munis)
     terr = load_territories(args.version)
+    if not any(t == '北方領土' for t in terr.values()):
+        # 領土図に X が無い版 (v07 以前) は 179 市町村だけを扱う
+        munis = [m for m in munis if m.get('status', 'active') == 'active']
+    edges = build_neighbor_graph(munis)
     blocks, occupied = place_blocks(munis, terr)
     cells, targets = initial_assignment(munis, terr, occupied)
     structural = sorted(c for c, t in terr.items() if t is None)
-    assert len(structural) == 32
+    nt_cells = sorted(c for c, t in terr.items() if t == '北方領土')
+    assert len(structural) + len(nt_cells) == 32, (len(structural), len(nt_cells))
     print('initial metrics:', report(munis, blocks, cells, edges), file=sys.stderr)
     if not args.no_anneal:
         ann = Annealer(munis, blocks, cells, edges, targets, rng)

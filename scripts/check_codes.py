@@ -16,7 +16,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CODE_PAGE = 'https://www.soumu.go.jp/denshijiti/code.html'
-# 北方領土の6村は法令上のコードを持つが、行政が行われておらず「179市町村」に含めない。
+# 北方領土の6村 (根室振興局管内)。総務省のコード一覧に収録されているが、市町村数 (北海道179) には含まれない。
+# マスターでは status: northern_territories として保持し、名称・コードを照合する。
 NORTHERN_TERRITORIES = {'01695', '01696', '01697', '01698', '01699', '01700'}
 
 
@@ -55,7 +56,8 @@ def read_codes(path):
                     cells[ref] = ss[int(v)] if typ == 's' else v
             a = str(cells.get('A', ''))
             if len(a) == 6 and a.isdigit() and cells.get('C'):
-                found[a[:5]] = cells['C']   # 6桁目は検査数字
+                # 6桁目は検査数字。一部の行はセル内でふりがな (カタカナ) が名称に連結されているので取り除く
+                found[a[:5]] = re.sub(r'[ァ-ヶー・]+$', '', cells['C'])
     return found
 
 
@@ -75,6 +77,10 @@ def main():
         if code[:3] == '011' and code != '01100':
             continue  # 札幌市の区は下で別に照合
         if code in NORTHERN_TERRITORIES:
+            if code not in mine:
+                errors.append(f'北方領土の村がマスターに無い: {code} {name}')
+            elif mine[code]['fullName'] != name or mine[code].get('status') != 'northern_territories':
+                errors.append(f'北方領土の村の名称/status 不一致: {code} {mine[code]["fullName"]} {mine[code].get("status")} ≠ {name}')
             continue
         if code not in mine:
             errors.append(f'マスターに無い: {code} {name}')
@@ -89,7 +95,7 @@ def main():
             errors.append(f'区の不一致: {w["code"]} {w["name"]} ≠ {off}')
     if errors:
         print('\n'.join('NG ' + e for e in errors)); sys.exit(1)
-    print(f'OK {path.name}: 179市町村と札幌10区のコード・名称が総務省一覧と一致 (北方領土6村は対象外)')
+    print(f'OK {path.name}: 179市町村・札幌10区・北方領土6村のコード・名称が総務省一覧と一致')
 
 
 if __name__ == '__main__':

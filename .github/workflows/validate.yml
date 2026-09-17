@@ -13,12 +13,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: 領土図のセル収支
-        run: python3 scripts/count_territories.py design/territories-v07.txt
+        run: python3 scripts/count_territories.py design/territories-v08.txt
       - name: 配置データの検証
-        run: python3 scripts/validate_layout.py data/layout-v07.json
+        run: python3 scripts/validate_layout.py data/layout-v08.json
       - name: docs/data が data と同期しているか
         run: |
-          cmp data/layout-v07.json docs/data/layout-v07.json
+          cmp data/layout-v08.json docs/data/layout-v08.json
           cmp data/municipalities.json docs/data/municipalities.json
           cmp data/sapporo-wards.json docs/data/sapporo-wards.json
           cmp data/board.csv docs/data/board.csv
+          cmp data/board-with-villages.csv docs/data/board-with-villages.csv

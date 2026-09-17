@@ -5,7 +5,12 @@
  *   map.setSeries({ label: '人口密度', unit: '人/km²', values: { '01100': 1800, ... } });
  *   map.setMode('value' | 'region');   // データ値の色 / 振興局の色 (無データ時の既定)
  *   map.setExpandSapporo(true | false); // 札幌4×4を10区に展開
+ *   map.setIncludeNorthernTerritoriesVillages(true | false); // 北方領土の6村を含める (既定 false = 179市町村)
  *   map.destroy();
+ *
+ * 北方領土の6村 (status: 'northern_territories') は、総務省の市町村数の注記「北方領土の6村を含めると…」と
+ * 同じ扱いにする: 既定では含めず (北海道庁「道内179市町村」と同じ範囲)、明示的に含めた時だけ市町村として描く。
+ * 含めない時、その6セルは構造余白と同じ見た目にする (東端の列だけなので凹みは生じない)。
  *
  * 描画方針 (dataviz の規約に従う):
  *   - 値の色は単一色相 (青) の light→dark 逐次ランプ。振興局色は「無データ」の識別用にのみ使う。
@@ -67,7 +72,10 @@ window.TabularMap = (function () {
     const byCode = new Map(munis.map((m) => [m.code, m]));
     const wards = opts.wards || null;
     const N = layout.grid[0];
-    const state = { mode: opts.mode || 'region', series: null, expandSapporo: !!opts.expandSapporo, showTable: false };
+    const state = { mode: opts.mode || 'region', series: null, expandSapporo: !!opts.expandSapporo, showTable: false,
+                    includeNTV: !!opts.includeNorthernTerritoriesVillages };
+    const isNTV = (p) => p.status === 'northern_territories';
+    const hasNTV = layout.placements.some(isNTV);
 
     const root = document.createElement('div');
     root.className = 'tm-root';
@@ -93,6 +101,10 @@ window.TabularMap = (function () {
     btnWards.type = 'button'; btnWards.className = 'tm-btn';
     btnWards.hidden = !wards;
     controls.appendChild(btnWards);
+    const btnNTV = document.createElement('button');
+    btnNTV.type = 'button'; btnNTV.className = 'tm-btn';
+    btnNTV.hidden = !hasNTV;
+    controls.appendChild(btnNTV);
     const btnTable = document.createElement('button');
     btnTable.type = 'button'; btnTable.className = 'tm-btn';
     controls.appendChild(btnTable);
@@ -124,11 +136,13 @@ window.TabularMap = (function () {
                                 'font-size': size }, g);
       text.textContent = name;
       const c = { code: p.code, name: isWard ? p.name : (byCode.get(p.code) || {}).fullName || p.name,
-                  bureau: p.bureau, x, y, w, h, g, rect, text, isWard: !!isWard, block: p.w * p.h > 1 };
+                  bureau: p.bureau, x, y, w, h, g, rect, text, isWard: !!isWard, block: p.w * p.h > 1,
+                  ntv: !isWard && isNTV(p) };
+      if (c.ntv) g.classList.add('tm-ntv');
       cells.push(c);
       g.addEventListener('mousemove', (ev) => showTip(c, ev));
       g.addEventListener('mouseleave', hideTip);
-      g.addEventListener('click', () => { if (opts.onSelect) opts.onSelect(c.code, c); });
+      g.addEventListener('click', () => { if (c.ntv && !state.includeNTV) return; if (opts.onSelect) opts.onSelect(c.code, c); });
       return c;
     }
     for (const s of layout.structural_spaces) {
@@ -157,7 +171,9 @@ window.TabularMap = (function () {
     function range() {
       const s = state.series;
       if (!s) return [0, 1];
-      let vals = Object.values(s.values || {}).filter((v) => typeof v === 'number' && !Number.isNaN(v));
+      // 表示中の市町村の値だけで範囲を決める (含めていない6村の値は凡例に影響させない)
+      const shown = new Set(layout.placements.filter((p) => state.includeNTV || !isNTV(p)).map((p) => p.code));
+      let vals = Object.entries(s.values || {}).filter(([k, v]) => shown.has(k) && typeof v === 'number' && !Number.isNaN(v)).map(([, v]) => v);
       const lo = s.min != null ? s.min : (vals.length ? Math.min(...vals) : 0);
       const hi = s.max != null ? s.max : (vals.length ? Math.max(...vals) : 1);
       return [lo, hi > lo ? hi : lo + 1];
@@ -167,7 +183,16 @@ window.TabularMap = (function () {
       const [lo, hi] = range();
       const valueMode = state.mode === 'value' && state.series;
       for (const c of cells) {
-        const visible = c.isWard ? state.expandSapporo : !(state.expandSapporo && c.code === '01100');
+        let visible = c.isWard ? state.expandSapporo : !(state.expandSapporo && c.code === '01100');
+        if (c.ntv && !state.includeNTV) {
+          // 含めない時は構造余白と同じ見た目 (枠線のみ)
+          c.g.style.display = '';
+          c.g.classList.add('tm-ntv-off');
+          c.rect.setAttribute('fill', 'none');
+          c.text.textContent = '';
+          continue;
+        }
+        if (c.ntv) { c.g.classList.remove('tm-ntv-off'); c.text.textContent = c.name; }
         c.g.style.display = visible ? '' : 'none';
         let fill;
         if (valueMode) {
@@ -205,6 +230,8 @@ window.TabularMap = (function () {
       btnMode.textContent = state.mode === 'value' ? '振興局の色で見る' : 'データ値の色で見る';
       btnMode.disabled = !state.series;
       btnWards.textContent = state.expandSapporo ? '札幌を1市に畳む' : '札幌を10区に展開';
+      btnNTV.textContent = state.includeNTV ? '北方領土の6村を含めない' : '北方領土の6村を含める';
+      btnNTV.title = '既定は179市町村 (北海道庁・総務省の市町村数と同じ範囲)。含めると根室振興局管内の6村を市町村として描く。';
       btnTable.textContent = state.showTable ? '表を隠す' : '表で見る';
       tableWrap.hidden = !state.showTable;
       if (state.showTable) renderTable();
@@ -212,8 +239,9 @@ window.TabularMap = (function () {
 
     function renderTable() {
       const s = state.series;
-      const rows = layout.placements.map((p) => ({ code: p.code, name: (byCode.get(p.code) || {}).fullName || p.name,
-                                                    bureau: p.bureau, v: valueOf(p.code) }));
+      const rows = layout.placements.filter((p) => state.includeNTV || !isNTV(p))
+        .map((p) => ({ code: p.code, name: (byCode.get(p.code) || {}).fullName || p.name,
+                       bureau: p.bureau + (isNTV(p) ? ' (北方領土)' : ''), v: valueOf(p.code) }));
       if (s) rows.sort((a, b) => (b.v ?? -Infinity) - (a.v ?? -Infinity));
       const t = document.createElement('table');
       t.innerHTML = `<thead><tr><th>コード</th><th>市町村</th><th>振興局</th><th>${s ? (s.label || '値') + (s.unit ? ` (${s.unit})` : '') : ''}</th></tr></thead>`;
@@ -229,9 +257,11 @@ window.TabularMap = (function () {
     }
 
     function showTip(c, ev) {
+      if (c.ntv && !state.includeNTV) { hideTip(); return; }
       const v = valueOf(c.code);
       const s = state.series;
       tip.innerHTML = `<b>${c.name}</b><span class="tm-tip-sub">${c.isWard ? '札幌市' : c.bureau} · ${c.code}</span>`
+        + (c.ntv ? '<span class="tm-tip-sub">北方領土。現在は日本の施政下になく、村としての行政は行われていない</span>' : '')
         + (s ? `<span class="tm-tip-val">${s.label || ''} ${fmt(v, s.unit)}</span>` : '');
       tip.hidden = false;
       const r = stage.getBoundingClientRect();
@@ -248,6 +278,7 @@ window.TabularMap = (function () {
 
     btnMode.addEventListener('click', () => { state.mode = state.mode === 'value' ? 'region' : 'value'; paint(); });
     btnWards.addEventListener('click', () => { state.expandSapporo = !state.expandSapporo; paint(); });
+    btnNTV.addEventListener('click', () => { state.includeNTV = !state.includeNTV; paint(); });
     btnTable.addEventListener('click', () => { state.showTable = !state.showTable; paint(); });
 
     paint();
@@ -255,6 +286,7 @@ window.TabularMap = (function () {
       setSeries(series) { state.series = series || null; if (series) state.mode = 'value'; paint(); },
       setMode(mode) { state.mode = mode; paint(); },
       setExpandSapporo(v) { state.expandSapporo = !!v; paint(); },
+      setIncludeNorthernTerritoriesVillages(v) { state.includeNTV = !!v; paint(); },
       highlight(code) { for (const o of cells) o.g.classList.toggle('tm-selected', o.code === code); },
       element: root,
       destroy() { if (root.parentNode) root.parentNode.removeChild(root); }
