@@ -3,7 +3,7 @@
 配置データ (data/layout-*.json) の機械検証。
 
   - 16×16 = 256 セルが、市町村 224 + 構造余白 32 でちょうど埋まる
-    (v08 以降: 構造余白 26 + 北方領土6村 6。既定の179表示では6村のセルも余白として扱う)
+    (v08 以降: 構造余白 26 + 北方領土6村 6。179市町村だけの表示では6村のセルも余白として扱う)
   - 179市町村 (+ status が northern_territories の6村) が全て1回ずつ現れ、コードが municipalities.json と一致する
   - 各市町村のフットプリントが階級 (札幌4×4 / 拠点2×2 / その他1×1) と一致する
   - 重なり・はみ出しがない
@@ -57,7 +57,7 @@ def validate(layout, munis):
         if len(nt) != 6:
             errors.append(f"北方領土の村が {len(nt)} 件 (期待 6)")
         if any(p['x'] != 15 or p['w'] * p['h'] != 1 for p in nt):
-            errors.append("北方領土の村は東端の列 (x=15) の 1×1 に限る (既定表示で凹みを作らないため)")
+            errors.append("北方領土の村は東端の列 (x=15) の 1×1 に限る (179市町村だけの表示で凹みを作らないため)")
     structural = {tuple(c) for c in layout['structural_spaces']}
     if len(structural) + len(nt) != 32:
         errors.append(f"構造余白 {len(structural)} + 北方領土 {len(nt)} ≠ 32")
@@ -94,7 +94,7 @@ def main():
     st = len(layout['structural_spaces'])
     msg = f"OK {path.name}: 179市町村 占有 {occ} + 構造余白 {st}"
     if nt:
-        msg += f" + 北方領土6村 {len(nt)} (既定表示では余白) = {occ + st + len(nt)}"
+        msg += f" + 北方領土6村 {len(nt)} (179市町村だけの表示では余白) = {occ + st + len(nt)}"
     else:
         msg += f" = {occ + st}"
     print(msg)
