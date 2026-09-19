@@ -53,7 +53,19 @@ openmct.install(TabularMapsPlugin({
 値の無い市町村は「無データ」色になります。振興局の色は無データ時の既定表示にだけ使い、
 セルの塗りはダッシュボードのデータに明け渡します。
 指標には任意で `notes` (市町村ごとの説明文。ツールチップと表に出ます) と `scale: {type: 'ordinal', labels: {...}}`
-(順序尺度。凡例が段階の色見本になります) を付けられます。
+(順序尺度。凡例が段階の色見本になります) を付けられます。`scale.colors: {'0': '#5fae8c', ...}` で段階ごとの塗り色も指定できます。
+
+気象警報・注意報の指標を別のダッシュボードに組み込む時は、取得とコード表の場所と配色を差し替えられます
+([dwg7/sas0](https://github.com/dwg7/sas0) が採択)。
+
+```js
+const source = TabularMapsJmaWarnings.create({
+  fetchJson: (url) => myCachedFetchJson(url),        // 気象庁 JSON の取得だけを差し替える (解釈はそのまま)
+  codesUrl: './vendor/do/jma-warning-codes.json',     // 種類コード表の場所 (codeTable でオブジェクトを直接渡しても可)
+  colors: { '0': '#5fae8c', '2': '#e4c74a', '3': '#e46a4a', '5': '#d24aa8' }
+});
+map.setSeries(await source.fetchValues());
+```
 
 ### 描画コアだけ使う
 

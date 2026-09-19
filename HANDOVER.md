@@ -13,6 +13,9 @@
   推計人口 (令和 8 年 9 月 1 日) の最大剰余法按分と一致 (D20)。
 - 指標: 気象庁の気象警報・注意報 (`docs/jma-warnings.js`、r8 形式、5 分更新) が最初の実データ。デモ指標 (緯度・経度・乱数) も残す。
 - 兄弟プロジェクト: tabularmaps/cldr (PR #1) とレイアウト JSON のキー名を共有。README で相互リンク済み。
+- dwg7/sas0 が気象警報・注意報の tabular map を採択 (2026-09-19、D22)。sas0 の「警報・注意報」計器内の表示切替として、
+  sas0 の docs/ に複製して使う。do 側は `scale.colors` と `TabularMapsJmaWarnings.create()` を用意済み。描画コアや
+  配置 (layout) を変えた時は sas0 セッションに知らせる。
 - cafebabe (dwg7/cafebabe) へは Open MCT・コード照合・配置手法の教訓を 1 回寄稿済み (2026-09-17)。
 
 ## 表記上の約束 (公開物に関わるので必ず守る)
@@ -36,6 +39,6 @@
 ## 作業の型 (再開時)
 
 - 新版の作り方は `CLAUDE.md`「新しい版を作る手順」。生成 → 検証 → 描画 → `docs/data` へ複製 → CI。
-- ブラウザ確認は `.claude/launch.json` の `docs` サーバー (python http.server 8765)。Open MCT のツリー展開は
+- ブラウザ確認は `.claude/launch.json` の `docs` サーバー (python http.server 8766)。Open MCT のツリー展開は
   `.c-disclosure-triangle` (span) をクリックする。
 - コミットの author は `18297+hfu@users.noreply.github.com`。コミットメッセージは日本語。

@@ -259,3 +259,26 @@ https://www.city.sapporo.jp/toukei/jinko/suikei-jinko/documents/jinko202609.pdf)
 - 描画: 指標の契約に `notes` (市町村ごとの説明。ツールチップと表に出す) と `scale: {type: 'ordinal', labels}` (凡例を段階の
   色見本にする) を追加した。色は既存の単一色相ランプを段階位置で使う (dataviz 規約の順序尺度)。
 - 北方領土の 6 村は気象庁の市町村区域 (class20s) に無く、「無データ」になる (class20s の北海道分は 186 区域、5 桁では 179)。
+
+## D22 (2026-09-19) 他のダッシュボードへの組み込み口 (dwg7/sas0 の採択に合わせて)
+
+- 経緯: hfu さんの依頼で、気象警報・注意報の tabular map を dwg7/sas0 (北海道の状況認識ダッシュボード、Open MCT 4.3.1、
+  `SAS0.registerInstrument` 方式) に採択してもらう相談をした。sas0 側の決定 (sas0 セッションからの連絡。sas0 側の判断なので
+  詳細は sas0 の DECISIONS.md が一次情報): 採択する / root 計器は増やさず既存の「警報・注意報」計器内の表示切替にする /
+  配色は sas0 の SEVERITY_COLOR・CALM_COLOR に揃える / 北方領土の 6 村の扱いは do の方針 (D16〜D19) を踏襲する /
+  ファイルは sas0 の docs/ に複製 (vendoring) する。
+- do 側に足した口 (いずれも任意で、既定の動作は変えない):
+  - 指標の契約に `scale.colors: {水準: '#rrggbb'}` を追加。順序尺度の段階ごとの塗り色を外から決められる。指定の無い段階は
+    既定の単一色相ランプ。文字のインクを明度から選ぶので `#rrggbb` に限る (それ以外は無視してランプに戻す)。
+  - `docs/jma-warnings.js` に `TabularMapsJmaWarnings.create({fetchJson, codesUrl, codeTable, colors, baseUrl, refreshMs, key, name})`。
+    `fetchJson(url)` で気象庁 JSON の取得だけを差し替えられる。理由: sas0 では状況図・警報注意報・更新情報が既に同じ r8 の
+    8 ファイルを取得しており、4 つ目の取得者を増やさず組み込み先の共有キャッシュ (sas0 の `SAS0.fetchJsonCached` 予定) に
+    載せるため。解釈 (class20Items の合算、解除の除外、5 桁コードごとの最高水準) は do 側のまま。
+    `codesUrl` / `codeTable` は種類コード表の置き場所が組み込み先で変わるため。
+  - 既存の `window.TABULARMAPS_JMA_WARNINGS` は `create()` の既定値として残した (index.html / preview.html は無変更)。
+- 確認: preview.html 上で `fetchJson` を数えるスタブと sas0 の 4 色を渡し、取得 8 回・値は既定の指標と一致・塗りと凡例が指定色に
+  なることを見た。水準 4 (危険警報: レベル４大雨・高潮・土砂災害) は sas0 から色の指定が無く、そのままだと青のランプになるので
+  sas0 側に色の指定を依頼した。
+- 別件: Open MCT 版 (公開版も同じ) のコンソールに `Cannot read properties of undefined (reading 'key')` が 1 件出る。
+  今回の変更より前からあり、表示には影響していない。原因は未調査。
+- ローカル確認用サーバーのポートを 8765 → 8766 に変えた (8765 は別プロジェクトのセッションが使っていた)。

@@ -5,6 +5,8 @@
  *   map.setSeries({ label: '人口密度', unit: '人/km²', values: { '01100': 1800, ... } });
  *   // 任意: min/max (値域)、asOf (基準時刻の文字列)、notes: {code: 文字列} (ツールチップと表に出す説明)、
  *   //       scale: {type: 'ordinal', labels: {'0': '発表なし', '2': '注意報', ...}} (順序尺度: 凡例を段階の色見本にする)
+ *   //       scale.colors: {'0': '#rrggbb', ...} (任意。段階ごとの塗り色を外から決める。組み込み先の配色に揃える時に使う。
+ *   //                     指定の無い段階は既定のランプ。文字のインクを明度から選ぶので #rrggbb 形式で渡す)
  *   map.setMode('value' | 'region');   // データ値の色 / 振興局の色 (無データ時の既定)
  *   map.setExpandSapporo(true | false); // 札幌4×4を10区に展開
  *   map.setIncludeNorthernTerritoriesVillages(true | false); // 北方領土の6村を含める (既定 true。false で179市町村だけ)
@@ -54,6 +56,10 @@ window.TabularMap = (function () {
   }
   function inkFor(fill) {
     return luminance(fill) < 0.3 ? '#ffffff' : '#0b0b0b';
+  }
+  function ordinalColor(s, v) {
+    const c = s && s.scale && s.scale.type === 'ordinal' && s.scale.colors ? s.scale.colors[String(v)] : null;
+    return typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null;
   }
   function fmtValue(s, v) {
     if (v == null || Number.isNaN(v)) return '—';
@@ -204,7 +210,7 @@ window.TabularMap = (function () {
         let fill;
         if (valueMode) {
           const v = valueOf(c.code);
-          fill = v === undefined ? 'var(--tm-nodata)' : ramp((v - lo) / (hi - lo));
+          fill = v === undefined ? 'var(--tm-nodata)' : (ordinalColor(state.series, v) || ramp((v - lo) / (hi - lo)));
         } else {
           fill = REGION[c.bureau] || 'var(--tm-nodata)';
         }
@@ -215,11 +221,11 @@ window.TabularMap = (function () {
       legend.innerHTML = '';
       const ordinal = valueMode && state.series.scale && state.series.scale.type === 'ordinal' && state.series.scale.labels;
       if (ordinal) {
-        // 順序尺度: 段階ごとの色見本 (値は min〜max の位置で同じランプから採る)
+        // 順序尺度: 段階ごとの色見本 (scale.colors があればその色、無ければ min〜max の位置で同じランプから採る)
         for (const k of Object.keys(ordinal).map(Number).sort((a, b) => a - b)) {
           const sw = document.createElement('span');
           sw.className = 'tm-legend-sw';
-          sw.innerHTML = `<i style="background:${ramp((k - lo) / (hi - lo))}"></i>${ordinal[k]}`;
+          sw.innerHTML = `<i style="background:${ordinalColor(state.series, k) || ramp((k - lo) / (hi - lo))}"></i>${ordinal[k]}`;
           legend.appendChild(sw);
         }
         const nd = document.createElement('span');
